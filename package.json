@@ -1,6 +1,6 @@
 {
   "name": "sahih-al-bukhari",
-  "version": "3.1.6",
+  "version": "3.1.7",
   "description": "Complete Sahih al-Bukhari. Offline-first, zero dependencies. CLI + Node + React/Vue/Vite.",
   "type": "module",
   "main": "./src/index.cjs",

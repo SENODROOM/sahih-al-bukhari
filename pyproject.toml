@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sahih-al-bukhari"
-version = "3.1.6"
+version = "3.1.7"
 description = "Complete Sahih al-Bukhari — 7,277 hadiths. Offline-first, zero dependencies. CLI + Python library."
 authors = ["muhammadsaadamin"]
 license = "AGPL-3.0"
