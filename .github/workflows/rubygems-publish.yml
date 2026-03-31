@@ -16,38 +16,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Ruby setup — no bundler-cache, no working-directory tricks ─────────
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
 
-      # ── 3. Copy shared data file into ruby/data/ ─────────────────────────────
       - name: Copy bundled data into ruby/data/
         run: |
           mkdir -p ruby/data
           cp data/bukhari.json.gz ruby/data/bukhari.json.gz
 
-      # ── 4. Install gems directly — no bundler involved ───────────────────────
-      # Bypasses all Bundler path/lockfile issues by installing gems globally.
       - name: Install gems
         run: gem install rake test-unit rspec rubocop yard --no-document
 
-      # ── 5. Run tests with plain ruby/rake (no bundle exec) ───────────────────
       - name: Run tests
         working-directory: ruby
         run: rake test
 
-      # ── 6. Build gem ─────────────────────────────────────────────────────────
       - name: Build gem
         working-directory: ruby
-        run: gem build sahih_al_bukhari.gemspec
+        run: |
+          # Read version directly from version.rb
+          VERSION=$(ruby -e "require_relative 'lib/sahih_al_bukhari/version'; puts SahihAlBukhari::VERSION")
+          GEM_FILE="sahih-al-bukhari-${VERSION}.gem"
+          echo "Building version: $VERSION"
+          # Remove this exact file if it exists from a previous run
+          rm -f "$GEM_FILE"
+          gem build sahih_al_bukhari.gemspec
+          echo "GEM_FILE=$GEM_FILE" >> $GITHUB_ENV
+          echo "Built: $GEM_FILE"
 
-      # ── 7. Publish (skipped on dry run) ──────────────────────────────────────
       - name: Publish to RubyGems.org
         if: ${{ github.event.inputs.dry_run != 'true' }}
         working-directory: ruby
@@ -58,11 +59,11 @@ jobs:
           :rubygems_api_key: ${{ secrets.RUBYGEMS_API_KEY }}
           EOF
           chmod 0600 ~/.gem/credentials
-          gem push sahih-al-bukhari-*.gem
+          echo "Pushing: $GEM_FILE"
+          gem push "$GEM_FILE"
 
-      # ── 8. Upload .gem as release asset ──────────────────────────────────────
       - name: Upload .gem to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: ruby/sahih-al-bukhari-*.gem
+          files: ruby/${{ env.GEM_FILE }}
