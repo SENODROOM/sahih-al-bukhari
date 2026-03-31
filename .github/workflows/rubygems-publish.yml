@@ -16,26 +16,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Ruby environment
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
+          bundler-cache: true
 
-      - name: Copy bundled data into ruby/data/
+      # 3. Copy any required data files
+      - name: Copy bundled data
         run: |
           mkdir -p ruby/data
           cp data/bukhari.json.gz ruby/data/bukhari.json.gz
 
+      # 4. Install development gems
       - name: Install gems
         run: gem install rake test-unit rspec rubocop yard --no-document
 
+      # 5. Run tests
       - name: Run tests
         working-directory: ruby
         run: rake test
 
+      # 6. Build gem
       - name: Build gem
         working-directory: ruby
         run: |
@@ -44,19 +51,19 @@ jobs:
           rm -f "$GEM_FILE"
           gem build sahih_al_bukhari.gemspec
           echo "GEM_FILE=$GEM_FILE" >> $GITHUB_ENV
-          echo "Built: $GEM_FILE"
+          echo "Built gem: $GEM_FILE"
 
+      # 7. Publish to RubyGems (skip if dry run)
       - name: Publish to RubyGems.org
         if: ${{ github.event.inputs.dry_run != 'true' }}
         working-directory: ruby
-        # Use GEM_HOST_API_KEY env var — RubyGems reads this automatically and
-        # skips MFA/WebAuthn entirely. No credentials file needed.
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
           echo "Pushing: $GEM_FILE"
           gem push "$GEM_FILE"
 
+      # 8. Upload gem to GitHub Release
       - name: Upload .gem to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
