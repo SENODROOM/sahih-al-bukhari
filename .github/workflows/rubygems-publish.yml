@@ -25,29 +25,37 @@ jobs:
         uses: actions/checkout@v4
 
       # ── 2. Ruby setup ────────────────────────────────────────────────────────
+      # FIX: removed bundler-cache: true — it requires a committed Gemfile.lock
+      # to resolve gems. Without it bundler errors with GemNotFound for every dep.
+      # We run bundle install explicitly in the next step instead.
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true   # runs `bundle install` and caches gems
 
-      # ── 3. Copy shared data file into the ruby/data/ directory ───────────────
-      #    The gemspec includes ruby/data/bukhari.json.gz in spec.files.
-      #    The data lives at repo root: data/bukhari.json.gz
+      # ── 3. Copy shared data file into ruby/data/ ─────────────────────────────
+      # The gemspec includes data/bukhari.json.gz in spec.files.
+      # The canonical copy lives at the repo root: data/bukhari.json.gz
       - name: Copy bundled data into ruby/data/
         run: |
           mkdir -p data
           cp ../data/bukhari.json.gz data/bukhari.json.gz
 
-      # ── 4. Run tests ─────────────────────────────────────────────────────────
+      # ── 4. Install dependencies ───────────────────────────────────────────────
+      # FIX: must install gems before running rake. Without bundler-cache this
+      # step is required. --jobs 4 speeds it up; --retry 3 handles flaky network.
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+
+      # ── 5. Run tests ─────────────────────────────────────────────────────────
       - name: Run tests
         run: bundle exec rake test
 
-      # ── 5. Build gem ─────────────────────────────────────────────────────────
+      # ── 6. Build gem ─────────────────────────────────────────────────────────
       - name: Build gem
         run: gem build sahih_al_bukhari.gemspec
 
-      # ── 6. Publish (skipped on dry run) ──────────────────────────────────────
+      # ── 7. Publish (skipped on dry run) ──────────────────────────────────────
       - name: Publish to RubyGems.org
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
@@ -59,7 +67,7 @@ jobs:
           chmod 0600 ~/.gem/credentials
           gem push sahih-al-bukhari-*.gem
 
-      # ── 7. Upload .gem as release asset ──────────────────────────────────────
+      # ── 8. Upload .gem as release asset ──────────────────────────────────────
       - name: Upload .gem to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
